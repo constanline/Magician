@@ -9,24 +9,30 @@ namespace Magician.Common.CustomControl
 {
     public partial class NumberText : SkinTextBox
     {
-        ErrorProvider ep;
+        #region 字段
+        readonly ErrorProvider ep;
 
-        string oldText = String.Empty;
-        string pattern = @"^\d+$";
-        string tip = String.Empty;
+        string _errorText = string.Empty;
+
+        bool _showErrorProvider = true;
+
+        string pattern;
+
+        string tip = string.Empty;
 
         int decimalPlaces = 0;
 
         int maxValue = 100;
 
         int minValue = 0;
+        #endregion
 
-        public Decimal? Value
+        #region 属性
+        public decimal? Value
         {
             get
             {
-                decimal val;
-                if (decimal.TryParse(this.Text, out val))
+                if (decimal.TryParse(Text, out decimal val))
                 {
                     return val;
                 }
@@ -38,8 +44,8 @@ namespace Magician.Common.CustomControl
         {
             get
             {
-                decimal? tmp = this.Value;
-                if(tmp == null)
+                decimal? tmp = Value;
+                if (tmp == null)
                 {
                     return null;
                 }
@@ -51,7 +57,7 @@ namespace Magician.Common.CustomControl
         {
             get
             {
-                decimal? tmp = this.Value;
+                decimal? tmp = Value;
                 if (tmp == null)
                 {
                     return null;
@@ -60,7 +66,124 @@ namespace Magician.Common.CustomControl
             }
         }
 
-        private void combinePattern()
+        [Browsable(false)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [Description("文本"), Category("文本")]
+        public new int MaxLength
+        {
+            get;
+            set;
+        }
+
+        [Description("文本"), Category("文本")]
+        public bool ShowErrorProvider
+        {
+            get
+            {
+                return _showErrorProvider;
+            }
+            set
+            {
+                if (!value)
+                    TipError();
+                else
+                    TipError(_errorText);
+                _showErrorProvider = value;
+            }
+        }
+
+        [Description("文本"), Category("文本")]
+        public override string Text
+        {
+            get
+            {
+                return SkinTxt.Text;
+            }
+            set
+            {
+                if (pattern == null)
+                {
+                    CombinePattern();
+                }
+                if (!CheckValid(value))
+                {
+                    TipError(tip);
+                    return;
+                }
+                SkinTxt.Text = value;
+            }
+        }
+
+
+        [Description("保留小数位数"), Category("小数位数")]
+        public int DecimalPlaces
+        {
+            get
+            {
+                return decimalPlaces;
+            }
+            set
+            {
+                if (value <= 0)
+                    decimalPlaces = 0;
+                else if (value >= 4)
+                    decimalPlaces = 4;
+                else
+                    decimalPlaces = value;
+
+                CombinePattern();
+            }
+        }
+
+        [Description("最大数值"), Category("最大值")]
+        public int MaxValue
+        {
+            get
+            {
+                return maxValue;
+            }
+
+            set
+            {
+                if (value >= minValue)
+                {
+                    maxValue = value;
+                }
+                CombinePattern();
+            }
+        }
+
+        [Description("最小数值"), Category("最小值")]
+        public int MinValue
+        {
+            get
+            {
+                return minValue;
+            }
+
+            set
+            {
+                if (value <= maxValue)
+                {
+                    minValue = value;
+                }
+                CombinePattern();
+            }
+        }
+        #endregion
+
+        #region 事件
+        public new EventHandler GotFocus;
+
+        public new EventHandler TextChanged;
+
+        public KeyPressEventHandler BeforeKeyPress;
+
+        public KeyPressEventHandler AfterKeyPress;
+        #endregion
+
+        #region 方法
+        private void CombinePattern()
         {
             StringBuilder sb = new StringBuilder("^");
             StringBuilder sbTip = new StringBuilder(string.Concat("只允许输入范围[", minValue, "~", maxValue, "]的数值"));
@@ -87,200 +210,107 @@ namespace Magician.Common.CustomControl
             tip = sbTip.ToString();
         }
 
-        [Description("保留小数位数"), Category("小数位数")]
-        public int DecimalPlaces
+        private void TipError(string errorText = null)
         {
-            get
+            _errorText = string.IsNullOrEmpty(errorText) ? string.Empty : errorText;
+            if (_showErrorProvider)
             {
-                return decimalPlaces;
-            }
-            set
-            {
-                if (value <= 0)
-                    decimalPlaces = 0;
-                else if (value >= 4)
-                    decimalPlaces = 4;
-                else
-                    decimalPlaces = value;
-
-                combinePattern();
+                ep.SetError(this, errorText);
             }
         }
 
-        [Description("最大数值"), Category("最大值")]
-        public int MaxValue
+        private bool CheckValid(string newText)
         {
-            get
+            if (decimal.TryParse(newText, out decimal val))
             {
-                return maxValue;
+                return Regex.IsMatch(newText, pattern) && val >= minValue && val <= maxValue;
             }
-
-            set
-            {
-                if (value >= minValue)
-                {
-                    maxValue = value;
-                }
-                combinePattern();
-            }
+            return false;
         }
+        #endregion
 
-        [Description("最小数值"), Category("最小值")]
-        public int MinValue
-        {
-            get
-            {
-                return minValue;
-            }
-
-            set
-            {
-                if (value <= maxValue)
-                {
-                    minValue = value;
-                }
-                combinePattern();
-            }
-        }
-
+        #region 构造器
         public NumberText()
         {
-            this.KeyPress += NumberText_KeyPress;
-            //this.Validating += NumberText_Validating;
-            //this.TextChanged += NumberText_TextChanged;
-            this.Leave += NumberText_Leave;
+            SkinTxt.GotFocus += NumberText_GotFocus;
+            SkinTxt.TextChanged += NumberText_TextChanged;
+            SkinTxt.KeyPress += NumberText_KeyPress;
+            SkinTxt.Leave += NumberText_Leave;
+
+            SkinTxt.MaxLength = 255;
             ep = new ErrorProvider();
+        }
+        #endregion
+
+        #region 事件响应
+        private void NumberText_GotFocus(object sender, EventArgs e)
+        {
+            GotFocus?.Invoke(sender, e);
+        }
+
+        private void NumberText_TextChanged(object sender, EventArgs e)
+        {
+            TextChanged?.Invoke(sender, e);
         }
 
         private void NumberText_Leave(object sender, EventArgs e)
         {
-            if (this.Text.Length == 0)
-            {
-                return;
-            }
-            if (this.Text[this.Text.Length - 1] == '.')
-            {
-                this.Text = this.Text.Substring(0, this.Text.Length - 1);
-            }
-
-            this.Text = Convert.ToDecimal(this.Text).ToString("f" + decimalPlaces);
-
+            TipError();
         }
-
-        //private void NumberText_TextChanged(object sender, EventArgs e)
-        //{
-        //    if (this.Text == oldText)
-        //    {
-        //        return;
-        //    }
-
-        //    if (this.Text.LastIndexOf('-') > 0)
-        //    {
-        //        int idx = this.Text.LastIndexOf('-');
-        //        this.Text = this.Text.Substring(0, idx) + this.Text.Substring(idx + 1);
-        //        ep.SetError(this, "负号只能出现在头部");
-        //        return;
-        //    }
-
-        //    if (!(Regex.IsMatch(this.Text, pattern)))
-        //    {
-        //        ep.SetError(this, tip);
-        //        return;
-        //    }
-
-        //    decimal val = Convert.ToDecimal(this.Text);
-        //    if (val > maxValue || val < minValue)
-        //    {
-        //        ep.SetError(this, "数值超出范围");
-        //        return;
-        //    }
-
-        //    oldText = val.ToString("f2");
-
-        //}
-
-        //private void NumberText_Validating(object sender, CancelEventArgs e)
-        //{
-        //    if (this.Text.Equals(string.Empty))
-        //    {
-        //        return;
-        //    }
-        //    if (!(Regex.IsMatch(this.Text, pattern)))
-        //    {
-        //        e.Cancel = true;
-        //        ep.SetError(this, string.Concat("只允许输入范围[", minValue, "-", maxValue, "]的数值"));
-        //        return;
-        //    }
-
-        //    if (this.Text.LastIndexOf('-') > 0)
-        //    {
-        //        e.Cancel = true;
-        //        return;
-        //    }
-
-        //    decimal val = Convert.ToDecimal(this.Text);
-        //    if (val > maxValue || val < minValue)
-        //    {
-        //        e.Cancel = true;
-        //        return;
-        //    }
-
-        //    this.Text = val.ToString("f2");
-        //}
 
         private void NumberText_KeyPress(object sender, KeyPressEventArgs e)
         {
-            if (e.KeyChar != '.' && e.KeyChar != '-' && e.KeyChar != '\b' && !Char.IsDigit(e.KeyChar))
+            BeforeKeyPress?.Invoke(this, e);
+
+            if (e.KeyChar != '.' && e.KeyChar != '-' && e.KeyChar != '\b' && !char.IsDigit(e.KeyChar))
             {
                 e.Handled = true;
                 return;
             }
 
-            if(e.KeyChar == '-' && minValue >= 0)
+            if (e.KeyChar == '-' && minValue >= 0)
             {
                 e.Handled = true;
                 return;
             }
 
-            StringBuilder newValue = new StringBuilder();
-            // newValue.Append(this.Text.Substring(0, this.SelectionStart));
-            // if (e.KeyChar == '\b')
-            // {
-            //     if (this.SelectionLength == 0 && newValue.Length > 0)
-            //     {
-            //         newValue.Remove(newValue.Length - 1, 1);
-            //     }
-            // }
-            // else
-            // {
-            //     newValue.Append(e.KeyChar);
-            // }
-            // newValue.Append(this.Text.Substring(this.SelectionStart + this.SelectionLength));
+            if (e.KeyChar == '.' && decimalPlaces == 0)
+            {
+                e.Handled = true;
+                return;
+            }
 
-            String newText = newValue.ToString();
+            var newValue = new StringBuilder();
+            newValue.Append(Text.Substring(0, SkinTxt.SelectionStart));
+            if (e.KeyChar == '\b')
+            {
+                if (SkinTxt.SelectionLength == 0 && newValue.Length > 0)
+                {
+                    newValue.Remove(newValue.Length - 1, 1);
+                }
+            }
+            else
+            {
+                newValue.Append(e.KeyChar);
+            }
+            newValue.Append(Text.Substring(SkinTxt.SelectionStart + SkinTxt.SelectionLength));
+
+            string newText = newValue.ToString();
             if (newText.Equals("-") || newText.Length == 0 || newText.IndexOf('.') == newText.Length - 1)
             {
                 return;
             }
 
-            if (!(Regex.IsMatch(newText, pattern)))
+            if (!CheckValid(newText))
             {
                 e.Handled = true;
-                ep.SetError(this, tip);
+                TipError(tip);
                 return;
             }
+            TipError();
 
-            decimal val = Convert.ToDecimal(newText);
-            if (val > maxValue || val < minValue)
-            {
-                e.Handled = true;
-                ep.SetError(this, string.Concat("极限范围[", minValue, ",", maxValue, "]"));
-                return;
-            }
-            else
-            {
-                ep.Clear();
-            }
+            AfterKeyPress?.Invoke(this, e);
         }
+        #endregion
     }
 }

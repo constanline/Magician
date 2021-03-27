@@ -61,6 +61,12 @@
     <Compile Include="Collections\SafeDictionary.cs" />
     <Compile Include="Collections\SortedArray.cs" />
     <Compile Include="Core\ByteConverter.cs" />
+    <Compile Include="CustomControl\IpBox.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CustomControl\IpBox.Designer.cs">
+      <DependentUpon>IpBox.cs</DependentUpon>
+    </Compile>
     <Compile Include="CustomControl\MessageForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -143,6 +149,7 @@
     <Compile Include="Util\ImageUtil.cs" />
     <Compile Include="Util\LogUtil.cs" />
     <Compile Include="Util\MachineUtil.cs" />
+    <Compile Include="Util\NetworkUtil.cs" />
     <Compile Include="Util\QrCoderUtil.cs" />
     <Compile Include="Util\ReflectionUtil.cs" />
     <Compile Include="Util\SerializeUtil.cs" />
@@ -152,8 +159,10 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
+    <EmbeddedResource Include="CustomControl\IpBox.resx">
+      <DependentUpon>IpBox.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="CustomControl\MagicianForm.resx">
       <DependentUpon>MagicianForm.cs</DependentUpon>
     </EmbeddedResource>
